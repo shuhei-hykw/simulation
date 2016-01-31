@@ -1,0 +1,146 @@
+/**
+ *  file: exposure.cc
+ *  date: 2015.07.04
+ *
+ */
+
+#include "exposure.hh"
+
+#include <cstdlib>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
+#include <libgen.h>
+#include <signal.h>
+
+#include <TFile.h>
+#include <TRandom.h>
+#include <TString.h>
+#include <TTree.h>
+#include <TH1.h>
+#include <TH2.h>
+
+#define MODE 0
+
+static Event event;
+
+enum e_argc
+  {
+    k_process,
+    k_root_file_name,
+    k_argc
+  };
+
+///////////////////////////////////////////////////////////////////////
+bool user_stop = false;
+void catch_signal(int sig)
+{
+  user_stop = true;
+  std::cout<<"\n\x1b[2D\x1b[1m"
+	   <<"#D "<<__func__<<"() catch signal "<<sig
+	   <<" ... exit process \x1b[0m"<<std::endl;
+}
+///////////////////////////////////////////////////////////////////////
+static unsigned long long ievent = 0;
+static int spill = 0;
+static int par;
+static std::string prog;
+
+int main(int argc, char **argv)
+{
+  std::string process = basename(argv[k_process]);
+    
+  if(argc!=k_argc){
+    std::cerr<<"#D Usage: "<<process<<" [root_file]"<<std::endl;
+    return EXIT_SUCCESS;
+  }
+
+  std::string root_file_name = argv[k_root_file_name];
+
+  ////////// Initialize
+  TFile *f = new TFile(root_file_name.c_str(), "recreate");
+  TTree *tree = new TTree("tree", "tree of emulsion");
+  
+  tree->Branch("event",   &event.event,   "event/I");
+  tree->Branch("spill",   &event.spill,   "spill/I");
+  tree->Branch("xcenter", &event.xcenter, "xcenter/D");
+  tree->Branch("ycenter", &event.ycenter, "ycenter/D");
+  tree->Branch("x",       &event.x,       "x/D");
+  tree->Branch("y",       &event.y,       "y/D");
+  tree->Branch("gaus",    &event.gaus,    "gaus/D");
+
+  TH2F *h0 = new TH2F("h0", "xy dist",
+		      (int)EmulsionSize[k_x], 0, EmulsionSize[k_x],
+		      (int)EmulsionSize[k_y], 0, EmulsionSize[k_y]);
+  TH1F *h1 = new TH1F("h1", "x dist",
+		      (int)EmulsionSize[k_x], 0, EmulsionSize[k_x]);
+  TH1F *h2 = new TH1F("h2", "y dist",
+		      (int)EmulsionSize[k_y], 0, EmulsionSize[k_y]);
+
+  ////////// Event Loop Start
+  std::cout<<"#D "<<__func__<<"() event loop start"<<std::endl;
+  double BeamCenter[k_xy] = { 10., 10. };
+  signal( SIGINT, catch_signal );
+
+  while( ievent<nevent
+	 && !user_stop
+	 ){
+    InitializeEvent();
+
+    event.event = ievent;
+    event.spill = spill;
+    unsigned long long kbeam = BeamIntensity;
+    
+    if(ievent%BeamIntensity==0){
+      if(spill%33==0) BeamCenter[k_x] = 0.;
+      BeamCenter[k_x] += Step[k_x];
+      if(spill%33==0 && spill!=0) BeamCenter[k_y] += Step[k_y];
+      spill++;
+    }
+    
+    double xcenter = BeamCenter[k_x];
+    double ycenter = BeamCenter[k_y];
+    double x = gRandom->Gaus(BeamCenter[k_x], BeamSigma[k_x]);
+    double y = gRandom->Gaus(BeamCenter[k_y], BeamSigma[k_y]);
+    event.xcenter = xcenter;
+    event.ycenter = ycenter;
+    event.x = x;
+    event.y = y;
+    h0->Fill( x, y );
+    h1->Fill( x );
+    h2->Fill( y );
+
+    tree->Fill();
+    ievent++;
+    if(ievent%1000==0){
+      par  = (double)ievent/nevent*100;
+      prog = "";
+      for(int i=0; i<par/5; i++) prog += "=";
+      std::cout<<"#D Event Number: "<<std::setw(12)<<ievent
+	       <<" ["<<std::left<<std::setw(20)<<prog<<"] "
+	       <<std::setw(3)<<par<<"%"<<std::endl<<"\x1b[1A";
+    }
+
+  }
+  std::cout<<"#D Event Number: "<<std::setw(12)<<ievent
+	   <<" ["<<std::left<<std::setw(20)<<prog<<"] "
+	   <<std::setw(3)<<par<<"%"<<std::endl;
+  
+  f->Write();
+  f->Close();
+
+  return EXIT_SUCCESS;
+}
+
+bool InitializeEvent()
+{
+  event.event   = -1;
+  event.spill   = -1;
+  event.xcenter = -999.;
+  event.ycenter = -999.;
+  event.x       = -999.;
+  event.y       = -999.;
+  event.gaus    = -999.;
+
+  return true;
+}
