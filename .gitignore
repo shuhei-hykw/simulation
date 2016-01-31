@@ -1,0 +1,13 @@
+.DS_Store
+*.[ado]
+*~
+\#*\#
+*.root
+*.pdf
+*.wrl
+*.org
+*.so
+*.pcm
+old/
+build/
+backup/
