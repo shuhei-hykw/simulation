@@ -1,8 +1,7 @@
-/**
+/***********************************
  *  file: showDist.C
- *  date: 2016.01.06
- *
- */
+ *  date: 2016.01.31
+ ***********************************/
 
 #include <iostream>
 
@@ -19,7 +18,9 @@
 #include "TStyle.h"
 #include "TTree.h"
 
-void showDist()
+//_____________________________________________________________________
+void
+showDist( void )
 {
   gROOT->Reset();
   gStyle->SetOptFit(1);
@@ -87,7 +88,8 @@ void showDist()
       
     h->Draw("colz");
     c1->Update();
-    TPaletteAxis *p = (TPaletteAxis*)h->GetListOfFunctions()->FindObject("palette");
+    TPaletteAxis *p
+      = (TPaletteAxis*)h->GetListOfFunctions()->FindObject("palette");
     p->SetX2NDC(0.85); p->SetY2NDC(0.62);
 
     TLine line;
@@ -100,8 +102,8 @@ void showDist()
 
     c1->Update();
 
-    Int_t x = h->GetXaxis()->FindBin((Int_t)EmulsionSizeX/2.);
-    Int_t y = h->GetYaxis()->FindBin((Int_t)EmulsionSizeY/2.);
+    Int_t x = h->GetXaxis()->FindBin( (Int_t)EmulsionSizeX/2. );
+    Int_t y = h->GetYaxis()->FindBin( (Int_t)EmulsionSizeY/2. );
 
     c1->cd(3)->SetGrid();
     TH1 *h_px = h->ProjectionX( "h_px", x, x );

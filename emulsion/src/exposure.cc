@@ -1,6 +1,6 @@
 /**
  *  file: exposure.cc
- *  date: 2016.01.06
+ *  date: 2016.05.17
  *
  */
 
@@ -43,7 +43,7 @@ catch_signal(int sig)
 
 //_____________________________________________________________________
 int
-main(int argc, char **argv)
+main( int argc, char **argv )
 {
   std::string process = basename(argv[k_process]);
     
@@ -57,8 +57,14 @@ main(int argc, char **argv)
   ////////// Initialize
   gRandom->SetSeed( time(NULL) );
   TFile *file = new TFile( root_file_name.c_str(), "recreate" );
+  if( !file->IsOpen() ){
+    std::cout << "#D [" << __func__ << "()] "
+	      << "cannot open file : " << root_file_name << std::endl;
+    return EXIT_FAILURE;
+  }
   TTree *tree = new TTree( "tree", "tree of emulsion" );
-  
+  if( !tree ) return EXIT_FAILURE;
+
   tree->Branch("event",   &event.event,   "event/I");
   tree->Branch("spill",   &event.spill,   "spill/I");
   tree->Branch("xcenter", &event.xcenter, "xcenter/D");
@@ -69,29 +75,28 @@ main(int argc, char **argv)
   Double_t edge = 0.;
   TH2F *h0  = new TH2F( "h0", "xy dist",
 			(int)EmulsionSize[k_x] + edge*2, -edge, EmulsionSize[k_x] +edge,
-			(int)EmulsionSize[k_y] + edge*2, -edge, EmulsionSize[k_y] +edge);
-  TH1F *h1  = new TH1F("h1", "x dist",
-		       (int)EmulsionSize[k_x], 0, EmulsionSize[k_x]);
-  TH1F *h2  = new TH1F("h2", "y dist",
-		       (int)EmulsionSize[k_y], 0, EmulsionSize[k_y]);
-  TH1F *h10 = new TH1F("h10", "beam intensity",
-		       (int)BeamIntensity,  0, BeamIntensity*2);
+			(int)EmulsionSize[k_y] + edge*2, -edge, EmulsionSize[k_y] +edge );
+  TH1F *h1  = new TH1F( "h1", "x dist",
+			(int)EmulsionSize[k_x], 0, EmulsionSize[k_x] );
+  TH1F *h2  = new TH1F( "h2", "y dist",
+			(int)EmulsionSize[k_y], 0, EmulsionSize[k_y] );
+  TH1F *h10 = new TH1F( "h10", "beam intensity",
+			(int)BeamIntensity,  0, BeamIntensity*2 );
 
   double BeamCenter[k_xy] = { BeamMargin[k_x], BeamMargin[k_y] };
   unsigned long long ievent = 0;
   int spill = 0;
   ////////// Event Loop Start
-  std::cout<<"#D "<<__func__<<"() event loop start"<<std::endl;
+  std::cout << "#D " << __func__ << "() event loop start" << std::endl;
   signal( SIGINT, catch_signal );
   while( !user_stop ){
-    
     int beam = gRandom->Gaus( BeamIntensity, fluctuation );
     h10->Fill( beam );
     
     if( !emulsion_move( BeamCenter ) ) break;
     spill++;
 
-    for(int i=0; i<beam && !user_stop; i++){
+    for( int i=0; i<beam && !user_stop; ++i ){
       initialize_event();
 
       event.event = ievent++;
@@ -113,7 +118,7 @@ main(int argc, char **argv)
       ievent++;
     }
 
-    if(spill%1==0){
+    if( spill%1==0 ){
       dump_count();
       std::cout<<"\x1b[1A"<<"\x1b[1A"<<"\x1b[1A"<<"\x1b[1A";
     }
@@ -129,26 +134,24 @@ main(int argc, char **argv)
 
 //_____________________________________________________________________
 bool
-initialize_event()
+initialize_event( void )
 {
   event.event   = 0;
-  event.spill   = -1;
+  event.spill   = 0;
   event.xcenter = -999.;
   event.ycenter = -999.;
   event.x       = -999.;
   event.y       = -999.;
-
   return true;
 }
 
 //_____________________________________________________________________
 bool
-emulsion_move(double *beam_center)
+emulsion_move( double *beam_center )
 {
   do {
     ////////// move x
     beam_center[k_x] += MoverStep[k_x];
-    
     ////////// move y
     if( beam_center[k_x]>EmulsionSize[k_x]-BeamMargin[k_x] ){
       beam_center[k_x]  = BeamMargin[k_x];
@@ -170,7 +173,7 @@ emulsion_move(double *beam_center)
 
 //_____________________________________________________________________
 bool
-dump_count()
+dump_count( void )
 {
   std::cout<<"#D "<<__func__<<"()          "<<std::endl
 	   <<"  Spill Number: "<<std::setw(8)<<event.spill<<std::endl
